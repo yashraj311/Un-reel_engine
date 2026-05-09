@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-const WEBHOOK_URL = ""; // configure your webhook URL here
+const WEBHOOK_URL = "https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -75,7 +75,8 @@ function Index() {
         setOutput(data);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError("Generation failed — check your connection.");
+      console.error(e);
     } finally {
       setLoading(false);
     }
