@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Settings } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -36,6 +35,8 @@ const STEPS = [
 ];
 const STEP_DELAY = 1200;
 
+const WEBHOOK_URL = "https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
+
 type Output = {
   hook: string;
   script: string;
@@ -46,19 +47,6 @@ type Output = {
   estDuration?: string;
 };
 
-const SAMPLE_OUTPUT: Output = {
-  hook: "Stop scrolling. The reason your mornings feel chaotic isn't your alarm — it's the first 7 minutes after it.",
-  script:
-    "Most people wake up and immediately reach for their phone. That single move spikes cortisol, fragments focus, and sets a reactive tone for the entire day.\n\nHere's the swap: leave the phone face-down. Drink a full glass of water. Step outside for 60 seconds of light. Then — and only then — open the phone.\n\nDo this for 7 days and watch your energy, mood and output shift. It's not a routine. It's a protocol.",
-  caption: "Your morning runs you, or you run it. No middle ground. 👇 Save this for tomorrow.",
-  cta: "Follow for one science-backed habit upgrade every day this week.",
-  hashtags: "#morningroutine #productivity #habits #focus #dopaminedetox #mindset #selfimprovement",
-  wordCount: 92,
-  estDuration: "60s",
-};
-
-const WEBHOOK_KEY = "unreel.webhookUrl";
-
 function Index() {
   const [nicheKey, setNicheKey] = useState(NICHES[0].key);
   const [duration, setDuration] = useState(DURATIONS[2]);
@@ -67,22 +55,18 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [output, setOutput] = useState<Output | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookDraft, setWebhookDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const niche = NICHES.find((n) => n.key === nicheKey) ?? NICHES[0];
 
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(WEBHOOK_KEY) ?? "" : "";
-    setWebhookUrl(saved);
-    setWebhookDraft(saved);
     return () => { timersRef.current.forEach(clearTimeout); };
   }, []);
 
-  function generate() {
+  async function generate() {
     setOutput(null);
+    setError(null);
     setLoading(true);
     setActiveStep(0);
 
@@ -91,20 +75,31 @@ function Index() {
     for (let i = 1; i < STEPS.length; i++) {
       timersRef.current.push(setTimeout(() => setActiveStep(i), STEP_DELAY * i));
     }
-    timersRef.current.push(setTimeout(() => {
-      setOutput({ ...SAMPLE_OUTPUT, estDuration: duration });
-      setLoading(false);
-    }, STEP_DELAY * STEPS.length));
-  }
 
-  function saveWebhook() {
-    const v = webhookDraft.trim();
-    setWebhookUrl(v);
-    if (typeof window !== "undefined") {
-      if (v) localStorage.setItem(WEBHOOK_KEY, v);
-      else localStorage.removeItem(WEBHOOK_KEY);
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ niche: nicheKey, tone, topic, duration }),
+      });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const data = await res.json();
+      setOutput({
+        hook: data.hook ?? "",
+        script: data.script ?? "",
+        caption: data.caption ?? "",
+        cta: data.cta ?? "",
+        hashtags: data.hashtags ?? "",
+        wordCount: data.wordCount,
+        estDuration: data.estDuration ?? duration,
+      });
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to generate script");
+    } finally {
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+      setLoading(false);
     }
-    setSettingsOpen(false);
   }
 
   function copy(text: string) {
@@ -141,18 +136,9 @@ function Index() {
             <div className="font-display text-primary uppercase text-sm tracking-wider">Un-reel Engine</div>
             <div className="text-muted-foreground text-xs mt-1">Part 2 prototype — AI script generation system</div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setWebhookDraft(webhookUrl); setSettingsOpen(true); }}
-              className="border border-border p-2 rounded-full hover:border-primary hover:text-primary text-muted-foreground transition"
-              aria-label="Settings"
-            >
-              <Settings size={14} />
-            </button>
-            <div className="flex items-center gap-2 border border-border px-3 py-1.5 rounded-full text-xs">
-              <span className="pulse-dot inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#3dff9a", color: "#3dff9a" }} />
-              <span className="text-muted-foreground">Claude API · <span className="text-foreground">live</span></span>
-            </div>
+          <div className="flex items-center gap-2 border border-border px-3 py-1.5 rounded-full text-xs">
+            <span className="pulse-dot inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#3dff9a", color: "#3dff9a" }} />
+            <span className="text-muted-foreground">Claude API · <span className="text-foreground">live</span></span>
           </div>
         </header>
 
@@ -250,17 +236,16 @@ function Index() {
               })}
             </div>
           )}
+
+          {error && (
+            <div className="mt-4 border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+              {error}
+            </div>
+          )}
         </section>
 
         {output && (
           <section>
-            {!webhookUrl && (
-              <div className="mb-4 border border-border bg-card p-3 text-xs text-muted-foreground flex items-center justify-between gap-3">
-                <span>⚙️ Connect to n8n webhook to generate live scripts — showing sample output below.</span>
-                <button onClick={() => { setWebhookDraft(webhookUrl); setSettingsOpen(true); }} className="text-foreground hover:text-primary transition whitespace-nowrap">Add webhook</button>
-              </div>
-            )}
-
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">Generated output</h2>
               <button onClick={copyAll} className="text-xs border border-border px-3 py-1.5 hover:border-primary hover:text-primary transition">Copy all</button>
@@ -300,32 +285,6 @@ function Index() {
           un-reel engine // v0.2 prototype
         </footer>
       </div>
-
-      {settingsOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "color-mix(in oklab, #000 70%, transparent)" }}
-          onClick={() => setSettingsOpen(false)}
-        >
-          <div
-            className="w-full max-w-md border border-border bg-card p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-display uppercase text-sm tracking-wider mb-1">Webhook settings</h3>
-            <p className="text-xs text-muted-foreground mb-4">Paste your n8n webhook URL. Stored locally in your browser.</p>
-            <input
-              value={webhookDraft}
-              onChange={(e) => setWebhookDraft(e.target.value)}
-              placeholder="https://your-n8n.app/webhook/..."
-              className="input mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setSettingsOpen(false)} className="text-xs border border-border px-3 py-2 text-muted-foreground hover:text-foreground transition">Cancel</button>
-              <button onClick={saveWebhook} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-display uppercase tracking-wider hover:opacity-90 transition">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .input {
