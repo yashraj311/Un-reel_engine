@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+const WEBHOOK_URL = "https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
+
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -35,8 +37,6 @@ const STEPS = [
 ];
 const STEP_DELAY = 1200;
 
-const WEBHOOK_URL = "/api/proxy";
-
 type Output = {
   hook: string;
   script: string;
@@ -60,13 +60,11 @@ function Index() {
 
   const niche = NICHES.find((n) => n.key === nicheKey) ?? NICHES[0];
 
-  useEffect(() => {
-    return () => { timersRef.current.forEach(clearTimeout); };
-  }, []);
+  useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
 
   async function generate() {
-    setOutput(null);
     setError(null);
+    setOutput(null);
     setLoading(true);
     setActiveStep(0);
 
@@ -75,29 +73,27 @@ function Index() {
     for (let i = 1; i < STEPS.length; i++) {
       timersRef.current.push(setTimeout(() => setActiveStep(i), STEP_DELAY * i));
     }
+    const stepsDonePromise = new Promise<void>((res) =>
+      timersRef.current.push(setTimeout(res, STEP_DELAY * STEPS.length))
+    );
 
     try {
-      const res = await fetch(WEBHOOK_URL, {
+      const fetchPromise = fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ niche: nicheKey, tone, topic, duration }),
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        return (await res.json()) as Output;
       });
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const data = await res.json();
-      setOutput({
-        hook: data.hook ?? "",
-        script: data.script ?? "",
-        caption: data.caption ?? "",
-        cta: data.cta ?? "",
-        hashtags: data.hashtags ?? "",
-        wordCount: data.wordCount,
-        estDuration: data.estDuration ?? duration,
-      });
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to generate script");
+
+      const [data] = await Promise.all([fetchPromise, stepsDonePromise]);
+      setOutput(data);
+    } catch (e) {
+      await stepsDonePromise.catch(() => {});
+      setError("Generation failed — check your connection.");
+      console.error(e);
     } finally {
-      timersRef.current.forEach(clearTimeout);
-      timersRef.current = [];
       setLoading(false);
     }
   }
@@ -153,6 +149,7 @@ function Index() {
         </section>
 
         <section className="border border-border bg-card p-6 md:p-8 mb-10">
+          {/* Niche pill row */}
           <div className="mb-6">
             <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">Niche / Channel type</label>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 niche-scroll">
@@ -236,12 +233,7 @@ function Index() {
               })}
             </div>
           )}
-
-          {error && (
-            <div className="mt-4 border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
-              {error}
-            </div>
-          )}
+          {error && <p className="text-destructive text-xs mt-3">{error}</p>}
         </section>
 
         {output && (
@@ -253,7 +245,11 @@ function Index() {
 
             <div className="space-y-3">
               {cards.map((c, i) => (
-                <div key={c.label} className="card-in" style={{ animationDelay: `${i * 100}ms` }}>
+                <div
+                  key={c.label}
+                  className="card-in"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
                   <OutputCard label={c.label} color={c.color} content={c.content} onCopy={() => copy(c.content)}>
                     {c.isScript && (
                       <div className="border-t border-border mt-4 pt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
