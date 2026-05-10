@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
-const WEBHOOK_URL = "https://corsproxy.io/?https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
+const WEBHOOK_URL = "/api/public/reel-proxy";
 
 export const Route = createFileRoute("/")({
   component: Index,
