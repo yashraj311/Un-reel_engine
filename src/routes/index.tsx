@@ -80,7 +80,7 @@ function Index() {
     try {
       const fetchPromise = fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ niche: nicheKey, tone, topic, duration }),
       }).then(async (res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
