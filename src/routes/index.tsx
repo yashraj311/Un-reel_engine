@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-
-const WEBHOOK_URL = "/api/public/reel-proxy";
+import { Settings } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -47,6 +46,19 @@ type Output = {
   estDuration?: string;
 };
 
+const SAMPLE_OUTPUT: Output = {
+  hook: "Stop scrolling. The reason your mornings feel chaotic isn't your alarm — it's the first 7 minutes after it.",
+  script:
+    "Most people wake up and immediately reach for their phone. That single move spikes cortisol, fragments focus, and sets a reactive tone for the entire day.\n\nHere's the swap: leave the phone face-down. Drink a full glass of water. Step outside for 60 seconds of light. Then — and only then — open the phone.\n\nDo this for 7 days and watch your energy, mood and output shift. It's not a routine. It's a protocol.",
+  caption: "Your morning runs you, or you run it. No middle ground. 👇 Save this for tomorrow.",
+  cta: "Follow for one science-backed habit upgrade every day this week.",
+  hashtags: "#morningroutine #productivity #habits #focus #dopaminedetox #mindset #selfimprovement",
+  wordCount: 92,
+  estDuration: "60s",
+};
+
+const WEBHOOK_KEY = "unreel.webhookUrl";
+
 function Index() {
   const [nicheKey, setNicheKey] = useState(NICHES[0].key);
   const [duration, setDuration] = useState(DURATIONS[2]);
@@ -55,15 +67,21 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [output, setOutput] = useState<Output | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookDraft, setWebhookDraft] = useState("");
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const niche = NICHES.find((n) => n.key === nicheKey) ?? NICHES[0];
 
-  useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem(WEBHOOK_KEY) ?? "" : "";
+    setWebhookUrl(saved);
+    setWebhookDraft(saved);
+    return () => { timersRef.current.forEach(clearTimeout); };
+  }, []);
 
-  async function generate() {
-    setError(null);
+  function generate() {
     setOutput(null);
     setLoading(true);
     setActiveStep(0);
@@ -73,29 +91,20 @@ function Index() {
     for (let i = 1; i < STEPS.length; i++) {
       timersRef.current.push(setTimeout(() => setActiveStep(i), STEP_DELAY * i));
     }
-    const stepsDonePromise = new Promise<void>((res) =>
-      timersRef.current.push(setTimeout(res, STEP_DELAY * STEPS.length))
-    );
-
-    try {
-      const fetchPromise = fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ niche: nicheKey, tone, topic, duration }),
-      }).then(async (res) => {
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-        return (await res.json()) as Output;
-      });
-
-      const [data] = await Promise.all([fetchPromise, stepsDonePromise]);
-      setOutput(data);
-    } catch (e) {
-      await stepsDonePromise.catch(() => {});
-      setError("Generation failed — check your connection.");
-      console.error(e);
-    } finally {
+    timersRef.current.push(setTimeout(() => {
+      setOutput({ ...SAMPLE_OUTPUT, estDuration: duration });
       setLoading(false);
+    }, STEP_DELAY * STEPS.length));
+  }
+
+  function saveWebhook() {
+    const v = webhookDraft.trim();
+    setWebhookUrl(v);
+    if (typeof window !== "undefined") {
+      if (v) localStorage.setItem(WEBHOOK_KEY, v);
+      else localStorage.removeItem(WEBHOOK_KEY);
     }
+    setSettingsOpen(false);
   }
 
   function copy(text: string) {
@@ -132,9 +141,18 @@ function Index() {
             <div className="font-display text-primary uppercase text-sm tracking-wider">Un-reel Engine</div>
             <div className="text-muted-foreground text-xs mt-1">Part 2 prototype — AI script generation system</div>
           </div>
-          <div className="flex items-center gap-2 border border-border px-3 py-1.5 rounded-full text-xs">
-            <span className="pulse-dot inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#3dff9a", color: "#3dff9a" }} />
-            <span className="text-muted-foreground">Claude API · <span className="text-foreground">live</span></span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setWebhookDraft(webhookUrl); setSettingsOpen(true); }}
+              className="border border-border p-2 rounded-full hover:border-primary hover:text-primary text-muted-foreground transition"
+              aria-label="Settings"
+            >
+              <Settings size={14} />
+            </button>
+            <div className="flex items-center gap-2 border border-border px-3 py-1.5 rounded-full text-xs">
+              <span className="pulse-dot inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#3dff9a", color: "#3dff9a" }} />
+              <span className="text-muted-foreground">Claude API · <span className="text-foreground">live</span></span>
+            </div>
           </div>
         </header>
 
@@ -149,7 +167,6 @@ function Index() {
         </section>
 
         <section className="border border-border bg-card p-6 md:p-8 mb-10">
-          {/* Niche pill row */}
           <div className="mb-6">
             <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">Niche / Channel type</label>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 niche-scroll">
@@ -233,11 +250,17 @@ function Index() {
               })}
             </div>
           )}
-          {error && <p className="text-destructive text-xs mt-3">{error}</p>}
         </section>
 
         {output && (
           <section>
+            {!webhookUrl && (
+              <div className="mb-4 border border-border bg-card p-3 text-xs text-muted-foreground flex items-center justify-between gap-3">
+                <span>⚙️ Connect to n8n webhook to generate live scripts — showing sample output below.</span>
+                <button onClick={() => { setWebhookDraft(webhookUrl); setSettingsOpen(true); }} className="text-foreground hover:text-primary transition whitespace-nowrap">Add webhook</button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">Generated output</h2>
               <button onClick={copyAll} className="text-xs border border-border px-3 py-1.5 hover:border-primary hover:text-primary transition">Copy all</button>
@@ -245,11 +268,7 @@ function Index() {
 
             <div className="space-y-3">
               {cards.map((c, i) => (
-                <div
-                  key={c.label}
-                  className="card-in"
-                  style={{ animationDelay: `${i * 100}ms` }}
-                >
+                <div key={c.label} className="card-in" style={{ animationDelay: `${i * 100}ms` }}>
                   <OutputCard label={c.label} color={c.color} content={c.content} onCopy={() => copy(c.content)}>
                     {c.isScript && (
                       <div className="border-t border-border mt-4 pt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
@@ -281,6 +300,32 @@ function Index() {
           un-reel engine // v0.2 prototype
         </footer>
       </div>
+
+      {settingsOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "color-mix(in oklab, #000 70%, transparent)" }}
+          onClick={() => setSettingsOpen(false)}
+        >
+          <div
+            className="w-full max-w-md border border-border bg-card p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display uppercase text-sm tracking-wider mb-1">Webhook settings</h3>
+            <p className="text-xs text-muted-foreground mb-4">Paste your n8n webhook URL. Stored locally in your browser.</p>
+            <input
+              value={webhookDraft}
+              onChange={(e) => setWebhookDraft(e.target.value)}
+              placeholder="https://your-n8n.app/webhook/..."
+              className="input mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setSettingsOpen(false)} className="text-xs border border-border px-3 py-2 text-muted-foreground hover:text-foreground transition">Cancel</button>
+              <button onClick={saveWebhook} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-display uppercase tracking-wider hover:opacity-90 transition">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .input {
