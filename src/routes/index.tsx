@@ -35,7 +35,7 @@ const STEPS = [
 ];
 const STEP_DELAY = 1200;
 
-const WEBHOOK_URL = "https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
+const WEBHOOK_URL = "https://api.allorigins.win/raw?url=https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
 
 type Output = {
   hook: string;
