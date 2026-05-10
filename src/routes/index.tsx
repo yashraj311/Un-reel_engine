@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
-const WEBHOOK_URL = "https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
+const WEBHOOK_URL = "https://corsproxy.io/?https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -80,7 +80,7 @@ function Index() {
     try {
       const fetchPromise = fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ niche: nicheKey, tone, topic, duration }),
       }).then(async (res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
