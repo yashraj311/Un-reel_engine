@@ -35,7 +35,7 @@ const STEPS = [
 ];
 const STEP_DELAY = 1200;
 
-const WEBHOOK_URL = "https://api.allorigins.win/raw?url=https://yashrajaipm.app.n8n.cloud/webhook/reel-engine";
+const WEBHOOK_URL = "/api/proxy";
 
 type Output = {
   hook: string;
@@ -79,7 +79,7 @@ function Index() {
     try {
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ niche: nicheKey, tone, topic, duration }),
       });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
