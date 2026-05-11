@@ -88,6 +88,7 @@ function Index() {
 
   const [scheduled, setScheduled] = useState(false);
 
+  const scheduleRef = useRef<HTMLDivElement | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
 
