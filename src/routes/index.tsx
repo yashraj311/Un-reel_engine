@@ -262,7 +262,11 @@ function Index() {
                     )}
                   </button>
                   {suggested && (
-                    <span className="inline-flex items-center ml-1 align-middle">
+                    <span
+                      className="inline-flex items-center ml-1 align-middle relative"
+                      onMouseEnter={() => setShowToneInfo(true)}
+                      onMouseLeave={() => setShowToneInfo(false)}
+                    >
                       <button
                         type="button"
                         onClick={() => setShowToneInfo((v) => !v)}
@@ -272,8 +276,8 @@ function Index() {
                         ⓘ
                       </button>
                       {showToneInfo && (
-                        <div className="absolute left-0 top-full mt-2 w-72 text-xs bg-card border border-border p-3 z-10">
-                          Your last Health post used a Controversial tone. We suggest balancing with Educational to build trust with your audience.
+                        <div className="absolute left-0 top-full mt-2 w-72 text-xs bg-card border border-border p-3 z-20 shadow-lg">
+                          Your last Health post used Controversial tone. Balance with Educational to build audience trust.
                         </div>
                       )}
                     </span>
