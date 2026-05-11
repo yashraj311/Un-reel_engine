@@ -425,6 +425,7 @@ function Index() {
               {genError && <p className="text-destructive text-xs mt-3">{genError}</p>}
             </div>
           </Step>
+          </div>
         )}
 
         {/* STEP 6 — Output */}
