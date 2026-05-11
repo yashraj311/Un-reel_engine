@@ -338,30 +338,39 @@ function Index() {
                 return (
                   <div
                     key={idea.title}
-                    className="card-in border bg-card p-5"
+                    className="card-in border bg-card p-6 flex flex-col transition-shadow"
                     style={{
                       animationDelay: `${i * 80}ms`,
                       borderColor: isSelected ? "var(--primary)" : "var(--color-border)",
+                      backgroundColor: "#141416",
+                      boxShadow: isSelected
+                        ? "0 0 0 1px var(--primary), 0 10px 40px -20px color-mix(in oklab, var(--primary) 60%, transparent)"
+                        : undefined,
                     }}
                   >
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <h3 className="font-display text-lg leading-tight">{idea.title}</h3>
-                      <div className="text-right shrink-0">
-                        <div className="text-2xl font-display text-primary leading-none">{avg}</div>
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">/ 5</div>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5 mb-4 text-xs">
+                    <h3 className="font-display text-xl leading-tight mb-5">{idea.title}</h3>
+                    <div className="space-y-2 mb-5 text-xs">
                       <Rating icon="⚡" label="Hook Strength" value={idea.hook} />
                       <Rating icon="❤️" label="Emotional Engagement" value={idea.emotion} />
                       <Rating icon="🎯" label="Relevancy" value={idea.relevancy} />
                       <Rating icon="📈" label="Virality Potential" value={idea.virality} />
                     </div>
+                    <div className="flex items-baseline justify-between border-t border-border pt-4 mb-4">
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Average Score</span>
+                      <span className="font-display font-bold text-2xl text-primary">{avg} <span className="text-sm text-muted-foreground font-normal">/ 5</span></span>
+                    </div>
                     <button
-                      onClick={() => { setSelectedIdea(idea); setPacks(null); setScheduled(false); }}
-                      className={`w-full py-2 text-xs uppercase tracking-wider border transition ${isSelected ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary hover:text-primary"}`}
+                      onClick={() => {
+                        setSelectedIdea(idea);
+                        setPacks(null);
+                        setScheduled(false);
+                        setTimeout(() => {
+                          scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 80);
+                      }}
+                      className={`mt-auto w-full py-2.5 text-xs uppercase tracking-wider font-medium border transition ${isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-primary text-primary-foreground border-primary hover:opacity-90"}`}
                     >
-                      {isSelected ? "✓ Selected" : "Select This Angle"}
+                      {isSelected ? "✓ Selected" : "Select This Angle →"}
                     </button>
                   </div>
                 );
@@ -372,6 +381,7 @@ function Index() {
 
         {/* STEP 5 — Schedule */}
         {selectedIdea && (
+          <div ref={scheduleRef}>
           <Step n={5} title="Plan your day">
             <div className="space-y-3">
               {slots.map((slot, i) => (
