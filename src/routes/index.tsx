@@ -23,11 +23,24 @@ const NICHES = [
   { key: "finance", emoji: "💰", label: "Finance" },
   { key: "health", emoji: "💪", label: "Health" },
   { key: "ai_tools", emoji: "🤖", label: "AI Tools" },
+  { key: "news", emoji: "📰", label: "News" },
   { key: "relationships", emoji: "💗", label: "Relationships" },
   { key: "business", emoji: "🚀", label: "Business" },
 ];
 
 const TONES = ["Bold & direct", "Educational", "Storytelling", "Controversial", "Listicle / tips", "Raw & honest"];
+
+const SUGGESTED_TONE: Record<string, { tone: string; reason: string }> = {
+  motivation: { tone: "Bold & direct", reason: "Motivation hits hardest with bold, direct delivery — no fluff." },
+  finance: { tone: "Educational", reason: "Finance audiences trust creators who teach, not sell." },
+  health: { tone: "Educational", reason: "Health needs credibility — educational tone builds audience trust." },
+  ai_tools: { tone: "Listicle / tips", reason: "AI tool roundups perform best as scannable tips & lists." },
+  news: { tone: "Storytelling", reason: "News reels grip viewers when framed as a tight narrative." },
+  relationships: { tone: "Raw & honest", reason: "Relationship content goes viral when it feels vulnerable & real." },
+  business: { tone: "Controversial", reason: "Business takes earn engagement when they challenge consensus." },
+};
+
+const DURATIONS = ["30s", "60s", "90s"];
 
 const RESEARCH_STEPS = [
   "Scanning viral content in niche...",
@@ -51,7 +64,14 @@ type Idea = {
   virality: number;
 };
 
-type Slot = { id: string; time: string; tone: string };
+type Slot = {
+  id: string;
+  time: string;
+  niche: string;
+  tone: string;
+  hook: string;
+  scheduled?: boolean;
+};
 
 type Pack = {
   hook: string;
@@ -59,15 +79,33 @@ type Pack = {
   caption: string;
   cta: string;
   hashtags: string;
-  wordCount?: number;
-  estDuration?: string;
 };
+
+function ClapperLogo() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      {/* hinge */}
+      <circle cx="5.5" cy="9.5" r="1.2" stroke="#6C5CE7" strokeWidth="1.5" />
+      {/* top clapper bar (rotated) */}
+      <g transform="rotate(-10 16 9)">
+        <rect x="3" y="5" width="26" height="6" stroke="#6C5CE7" strokeWidth="1.6" />
+        <line x1="9" y1="5" x2="6" y2="11" stroke="#00CEC9" strokeWidth="1.4" />
+        <line x1="15" y1="5" x2="12" y2="11" stroke="#00CEC9" strokeWidth="1.4" />
+        <line x1="21" y1="5" x2="18" y2="11" stroke="#00CEC9" strokeWidth="1.4" />
+        <line x1="27" y1="5" x2="24" y2="11" stroke="#00CEC9" strokeWidth="1.4" />
+      </g>
+      {/* body */}
+      <rect x="3" y="13" width="26" height="15" stroke="#6C5CE7" strokeWidth="1.6" />
+    </svg>
+  );
+}
 
 function Index() {
   const [nicheKey, setNicheKey] = useState(NICHES[0].key);
-  const [tone, setTone] = useState(TONES[0]);
+  const [tone, setTone] = useState(SUGGESTED_TONE[NICHES[0].key].tone);
   const [showToneInfo, setShowToneInfo] = useState(false);
   const [topic, setTopic] = useState("");
+  const [duration, setDuration] = useState("60s");
   const [weekly, setWeekly] = useState(false);
   const [weeklyTopic, setWeeklyTopic] = useState("");
 
@@ -77,8 +115,8 @@ function Index() {
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
 
   const [slots, setSlots] = useState<Slot[]>([
-    { id: "s1", time: "09:00", tone: TONES[0] },
-    { id: "s2", time: "18:00", tone: TONES[1] },
+    { id: "s1", time: "09:00", niche: NICHES[0].key, tone: TONES[0], hook: "" },
+    { id: "s2", time: "18:00", niche: NICHES[0].key, tone: TONES[1], hook: "" },
   ]);
 
   const [generating, setGenerating] = useState(false);
@@ -86,14 +124,17 @@ function Index() {
   const [packs, setPacks] = useState<Pack[] | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
 
-  const [scheduled, setScheduled] = useState(false);
-
-  const scheduleRef = useRef<HTMLDivElement | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
 
   const niche = NICHES.find((n) => n.key === nicheKey)!;
-  const suggestedTone = useMemo(() => (nicheKey === "health" ? "Educational" : null), [nicheKey]);
+  const suggestion = SUGGESTED_TONE[nicheKey];
+
+  // When user selects an angle, auto-fill blank hook fields in slots
+  useEffect(() => {
+    if (!selectedIdea) return;
+    setSlots((prev) => prev.map((s) => (s.hook.trim() ? s : { ...s, hook: selectedIdea.title })));
+  }, [selectedIdea]);
 
   function clearTimers() {
     timersRef.current.forEach(clearTimeout);
@@ -114,8 +155,6 @@ function Index() {
   async function researchAngles() {
     setIdeas(null);
     setSelectedIdea(null);
-    setPacks(null);
-    setScheduled(false);
     setResearching(true);
     await runSteps(RESEARCH_STEPS.length, setResearchStep);
     const baseTopic = weekly ? (weeklyTopic || "weekly summary") : (topic || niche.label);
@@ -131,7 +170,13 @@ function Index() {
 
   function addSlot() {
     if (slots.length >= 4) return;
-    setSlots([...slots, { id: `s${Date.now()}`, time: "12:00", tone: TONES[0] }]);
+    setSlots([...slots, {
+      id: `s${Date.now()}`,
+      time: "12:00",
+      niche: nicheKey,
+      tone: SUGGESTED_TONE[nicheKey].tone,
+      hook: selectedIdea?.title || "",
+    }]);
   }
   function removeSlot(id: string) {
     setSlots(slots.filter((s) => s.id !== id));
@@ -141,10 +186,8 @@ function Index() {
   }
 
   async function generateAll() {
-    if (!selectedIdea) return;
     setGenError(null);
     setPacks(null);
-    setScheduled(false);
     setGenerating(true);
     const stepsDone = runSteps(GEN_STEPS.length, setGenStep);
 
@@ -154,12 +197,12 @@ function Index() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            niche: nicheKey,
+            niche: slot.niche,
             tone: slot.tone,
-            topic: `${selectedIdea.title}${topic ? ` — ${topic}` : ""}`,
-            duration: "60s",
+            topic: slot.hook || topic || niche.label,
+            angle: slot.hook || selectedIdea?.title,
+            duration,
             timeSlot: slot.time,
-            angle: selectedIdea.title,
             weeklySummary: weekly ? weeklyTopic : undefined,
           }),
         }).then(async (res) => {
@@ -169,6 +212,8 @@ function Index() {
       );
       const [results] = await Promise.all([Promise.all(requests), stepsDone]);
       setPacks(results);
+      // mark all slots scheduled
+      setSlots((prev) => prev.map((s) => ({ ...s, scheduled: true })));
     } catch (e) {
       await stepsDone.catch(() => {});
       console.error(e);
@@ -178,18 +223,27 @@ function Index() {
     }
   }
 
+  function cancelSlot(id: string) {
+    setSlots(slots.map((s) => (s.id === id ? { ...s, scheduled: false } : s)));
+  }
+
   function copy(text: string) { navigator.clipboard.writeText(text); }
+
+  const scheduledCount = slots.filter((s) => s.scheduled).length;
 
   return (
     <div className="grain min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
-      <div className="mx-auto max-w-5xl px-5 py-10">
-        <header className="flex items-start justify-between gap-4 mb-12">
-          <div>
-            <div className="font-display text-primary uppercase text-sm tracking-wider">Un-Reel Engine</div>
-            <div className="text-muted-foreground text-xs mt-1">v0.3 prototype — full content workflow</div>
+      <div className="mx-auto max-w-7xl px-5 py-8">
+        <header className="flex items-start justify-between gap-4 mb-10">
+          <div className="flex items-center gap-3">
+            <ClapperLogo />
+            <div>
+              <div className="font-display text-primary uppercase text-sm tracking-wider leading-none">Un-Reel Engine</div>
+              <div className="text-muted-foreground text-[10px] mt-1">v0.3 prototype</div>
+            </div>
           </div>
           <div className="flex items-center gap-2 border border-border px-3 py-1.5 rounded-full text-xs">
-            <span className="pulse-dot inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#3dff9a" }} />
+            <span className="pulse-dot inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#00CEC9" }} />
             <span className="text-muted-foreground">Claude API · <span className="text-foreground">live</span></span>
           </div>
         </header>
@@ -203,290 +257,336 @@ function Index() {
           </p>
         </section>
 
-        {/* STEP 1 — Niche */}
-        <Step n={1} title="Pick your niche">
-          <div className="flex flex-wrap gap-2">
-            {NICHES.map((n) => {
-              const active = n.key === nicheKey;
-              return (
-                <button
-                  key={n.key}
-                  type="button"
-                  onClick={() => setNicheKey(n.key)}
-                  className={`flex items-center gap-2 px-4 py-2.5 border text-sm transition ${active ? "border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
-                  style={active ? { backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" } : {}}
-                >
-                  <span>{n.emoji}</span>
-                  <span>{n.label}</span>
-                </button>
-              );
-            })}
-            <div className="relative group">
-              <button
-                disabled
-                className="flex items-center gap-2 px-4 py-2.5 border border-border text-sm text-muted-foreground/60 cursor-not-allowed"
-              >
-                <span>🔗</span>
-                <span>Cross-Niche</span>
-                <span>🔒</span>
-              </button>
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 text-xs bg-card border border-border p-3 opacity-0 group-hover:opacity-100 transition z-10">
-                Phase 2 — cross-niche trend blending. Coming soon.
-              </div>
-            </div>
-          </div>
-        </Step>
-
-        {/* STEP 2 — Tone */}
-        <Step n={2} title="Choose your tone">
-          <div className="flex flex-wrap gap-2 items-center">
-            {TONES.map((t) => {
-              const active = t === tone;
-              const suggested = suggestedTone === t;
-              return (
-                <div key={t} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setTone(t)}
-                    className={`px-3 py-2 text-xs border transition ${active ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                    style={active ? { backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" } : {}}
-                  >
-                    {t}
-                    {suggested && (
-                      <span
-                        className="ml-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wider"
-                        style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
-                      >
-                        Suggested
-                      </span>
-                    )}
-                  </button>
-                  {suggested && (
-                    <span
-                      className="inline-flex items-center ml-1 align-middle relative"
-                      onMouseEnter={() => setShowToneInfo(true)}
-                      onMouseLeave={() => setShowToneInfo(false)}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* LEFT — Workflow */}
+          <div className="lg:col-span-2 min-w-0">
+            {/* STEP 1 — Niche */}
+            <Step n={1} title="Pick your niche">
+              <div className="flex flex-wrap gap-2">
+                {NICHES.map((n) => {
+                  const active = n.key === nicheKey;
+                  return (
+                    <button
+                      key={n.key}
+                      type="button"
+                      onClick={() => {
+                        setNicheKey(n.key);
+                        setTone(SUGGESTED_TONE[n.key].tone);
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2.5 border text-sm transition ${active ? "border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+                      style={active ? { backgroundColor: "color-mix(in oklab, var(--primary) 14%, transparent)" } : {}}
                     >
+                      <span>{n.emoji}</span>
+                      <span>{n.label}</span>
+                    </button>
+                  );
+                })}
+                <div className="relative group">
+                  <button
+                    disabled
+                    className="flex items-center gap-2 px-4 py-2.5 border border-border text-sm text-muted-foreground/60 cursor-not-allowed"
+                  >
+                    <span>🔗</span>
+                    <span>Cross-Niche</span>
+                    <span>🔒</span>
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 text-xs bg-card border border-border p-3 opacity-0 group-hover:opacity-100 transition z-10">
+                    Phase 2 — cross-niche trend blending. Coming soon.
+                  </div>
+                </div>
+              </div>
+            </Step>
+
+            {/* STEP 2 — Tone */}
+            <Step n={2} title="Choose your tone">
+              <div className="flex flex-wrap gap-2 items-center">
+                {TONES.map((t) => {
+                  const active = t === tone;
+                  const suggested = suggestion.tone === t;
+                  return (
+                    <div key={t} className="relative">
                       <button
                         type="button"
-                        onClick={() => setShowToneInfo((v) => !v)}
-                        className="w-5 h-5 inline-flex items-center justify-center rounded-full border border-border text-muted-foreground hover:text-primary text-[11px]"
-                        aria-label="Why suggested?"
+                        onClick={() => setTone(t)}
+                        className={`px-3 py-2 text-xs border transition ${active ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                        style={active ? { backgroundColor: "color-mix(in oklab, var(--primary) 14%, transparent)" } : {}}
                       >
-                        ⓘ
+                        {t}
+                        {suggested && (
+                          <span
+                            className="ml-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wider"
+                            style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
+                          >
+                            Suggested
+                          </span>
+                        )}
                       </button>
-                      {showToneInfo && (
-                        <div className="absolute left-0 top-full mt-2 w-72 text-xs bg-card border border-border p-3 z-20 shadow-lg">
-                          Your last Health post used Controversial tone. Balance with Educational to build audience trust.
-                        </div>
+                      {suggested && (
+                        <span
+                          className="inline-flex items-center ml-1 align-middle relative"
+                          onMouseEnter={() => setShowToneInfo(true)}
+                          onMouseLeave={() => setShowToneInfo(false)}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setShowToneInfo((v) => !v)}
+                            className="w-5 h-5 inline-flex items-center justify-center rounded-full border border-border text-muted-foreground hover:text-primary text-[11px]"
+                            aria-label="Why suggested?"
+                          >
+                            ⓘ
+                          </button>
+                          {showToneInfo && (
+                            <div className="absolute left-0 top-full mt-2 w-72 text-xs bg-card border border-border p-3 z-20 shadow-lg">
+                              {suggestion.reason}
+                            </div>
+                          )}
+                        </span>
                       )}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Step>
+                    </div>
+                  );
+                })}
+              </div>
+            </Step>
 
-        {/* STEP 3 — Topic + Weekly */}
-        <Step n={3} title="Topic & weekly summary">
-          <input
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="Optional topic / angle (e.g. why most morning routines fail)"
-            className="input"
-          />
-          <label className="mt-4 flex items-center gap-3 cursor-pointer select-none">
-            <span
-              onClick={() => setWeekly(!weekly)}
-              className="relative inline-block w-10 h-5 rounded-full transition"
-              style={{ backgroundColor: weekly ? "var(--primary)" : "var(--color-border)" }}
-            >
-              <span
-                className="absolute top-0.5 left-0.5 w-4 h-4 bg-background rounded-full transition"
-                style={{ transform: weekly ? "translateX(20px)" : "translateX(0)" }}
+            {/* STEP 3 — Topic + Duration + Weekly */}
+            <Step n={3} title="Topic & format">
+              <input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="Optional topic / angle (e.g. why most morning routines fail)"
+                className="input"
               />
-            </span>
-            <span className="text-sm">📋 Weekly Summary Reel</span>
-          </label>
-          {weekly && (
-            <input
-              value={weeklyTopic}
-              onChange={(e) => setWeeklyTopic(e.target.value)}
-              placeholder="What topic to summarise? (e.g. biggest AI news this week)"
-              className="input mt-3"
-            />
-          )}
-        </Step>
 
-        {/* STEP 4 — Research */}
-        <div className="mb-8">
-          {!researching ? (
-            <button
-              onClick={researchAngles}
-              className="w-full py-4 font-display uppercase tracking-wider text-sm bg-primary text-primary-foreground hover:opacity-90 transition"
-            >
-              🔍 Research Viral Angles
-            </button>
-          ) : (
-            <StepTracker steps={RESEARCH_STEPS} active={researchStep} />
-          )}
-        </div>
-
-        {ideas && (
-          <Step n={4} title="Top viral angles">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {ideas.map((idea, i) => {
-                const avg = ((idea.hook + idea.emotion + idea.relevancy + idea.virality) / 4).toFixed(1);
-                const isSelected = selectedIdea?.title === idea.title;
-                return (
-                  <div
-                    key={idea.title}
-                    className="card-in border bg-card p-6 flex flex-col transition-shadow"
-                    style={{
-                      animationDelay: `${i * 80}ms`,
-                      borderColor: isSelected ? "var(--primary)" : "var(--color-border)",
-                      backgroundColor: "#141416",
-                      boxShadow: isSelected
-                        ? "0 0 0 1px var(--primary), 0 10px 40px -20px color-mix(in oklab, var(--primary) 60%, transparent)"
-                        : undefined,
-                    }}
-                  >
-                    <h3 className="font-display text-xl leading-tight mb-5">{idea.title}</h3>
-                    <div className="space-y-2 mb-5 text-xs">
-                      <Rating icon="⚡" label="Hook Strength" value={idea.hook} />
-                      <Rating icon="❤️" label="Emotional Engagement" value={idea.emotion} />
-                      <Rating icon="🎯" label="Relevancy" value={idea.relevancy} />
-                      <Rating icon="📈" label="Virality Potential" value={idea.virality} />
-                    </div>
-                    <div className="flex items-baseline justify-between border-t border-border pt-4 mb-4">
-                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Average Score</span>
-                      <span className="font-display font-bold text-2xl text-primary">{avg} <span className="text-sm text-muted-foreground font-normal">/ 5</span></span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedIdea(idea);
-                        setPacks(null);
-                        setScheduled(false);
-                        setTimeout(() => {
-                          scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }, 80);
-                      }}
-                      className={`mt-auto w-full py-2.5 text-xs uppercase tracking-wider font-medium border transition ${isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-primary text-primary-foreground border-primary hover:opacity-90"}`}
-                    >
-                      {isSelected ? "✓ Selected" : "Select This Angle →"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </Step>
-        )}
-
-        {/* STEP 5 — Schedule */}
-        {selectedIdea && (
-          <div ref={scheduleRef}>
-          <Step n={5} title="Plan your day">
-            <div className="space-y-3">
-              {slots.map((slot, i) => (
-                <div key={slot.id} className="border border-border bg-card p-4 flex flex-col md:flex-row gap-3 md:items-center">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground md:w-20">Post {i + 1}</div>
-                  <input
-                    type="time"
-                    value={slot.time}
-                    onChange={(e) => updateSlot(slot.id, { time: e.target.value })}
-                    className="input md:w-32"
-                  />
-                  <select
-                    value={slot.tone}
-                    onChange={(e) => updateSlot(slot.id, { tone: e.target.value })}
-                    className="input flex-1"
-                  >
-                    {TONES.map((t) => <option key={t}>{t}</option>)}
-                  </select>
-                  {slots.length > 1 && (
-                    <button onClick={() => removeSlot(slot.id)} className="text-xs text-muted-foreground hover:text-destructive transition px-2">✕</button>
-                  )}
+              <div className="mt-4">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Reel Duration</div>
+                <div className="flex gap-2">
+                  {DURATIONS.map((d) => {
+                    const active = d === duration;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setDuration(d)}
+                        className={`px-4 py-2 text-xs border transition ${active ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                        style={active ? { backgroundColor: "color-mix(in oklab, var(--primary) 14%, transparent)" } : {}}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-            {slots.length < 4 && (
-              <button onClick={addSlot} className="mt-3 text-xs border border-border px-3 py-2 hover:border-primary hover:text-primary transition">
-                + Add Time Slot
-              </button>
-            )}
-            <div className="mt-6">
-              {!generating ? (
+              </div>
+
+              <label className="mt-5 flex items-center gap-3 cursor-pointer select-none">
+                <span
+                  onClick={() => setWeekly(!weekly)}
+                  className="relative inline-block w-10 h-5 rounded-full transition"
+                  style={{ backgroundColor: weekly ? "var(--primary)" : "var(--color-border)" }}
+                >
+                  <span
+                    className="absolute top-0.5 left-0.5 w-4 h-4 bg-background rounded-full transition"
+                    style={{ transform: weekly ? "translateX(20px)" : "translateX(0)" }}
+                  />
+                </span>
+                <span className="text-sm">📋 Weekly Summary Reel</span>
+              </label>
+              {weekly && (
+                <input
+                  value={weeklyTopic}
+                  onChange={(e) => setWeeklyTopic(e.target.value)}
+                  placeholder="What topic to summarise? (e.g. biggest AI news this week)"
+                  className="input mt-3"
+                />
+              )}
+            </Step>
+
+            {/* STEP 4 — Research */}
+            <div className="mb-8">
+              {!researching ? (
                 <button
-                  onClick={generateAll}
+                  onClick={researchAngles}
                   className="w-full py-4 font-display uppercase tracking-wider text-sm bg-primary text-primary-foreground hover:opacity-90 transition"
                 >
-                  ⚡ Generate All Scripts
+                  🔍 Research Viral Angles
                 </button>
               ) : (
-                <StepTracker steps={GEN_STEPS} active={genStep} />
+                <StepTracker steps={RESEARCH_STEPS} active={researchStep} />
               )}
-              {genError && <p className="text-destructive text-xs mt-3">{genError}</p>}
             </div>
-          </Step>
-          </div>
-        )}
 
-        {/* STEP 6 — Output */}
-        {packs && (
-          <Step n={6} title="Generated content packages">
-            <div className="space-y-6">
-              {packs.map((p, i) => {
-                const slot = slots[i];
-                return (
-                  <div key={i} className="card-in border border-border bg-card p-5" style={{ animationDelay: `${i * 100}ms` }}>
-                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                      <div className="font-display uppercase text-sm tracking-wider">Post {i + 1} · {slot?.time}</div>
-                      <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
-                        <span>{niche.emoji} {niche.label}</span>
-                        <span>·</span>
-                        <span>{slot?.tone}</span>
-                        <span>·</span>
-                        <span>{slot?.time}</span>
+            {ideas && (
+              <Step n={4} title="Top viral angles">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {ideas.map((idea, i) => {
+                    const avg = ((idea.hook + idea.emotion + idea.relevancy + idea.virality) / 4).toFixed(1);
+                    const isSelected = selectedIdea?.title === idea.title;
+                    return (
+                      <div
+                        key={idea.title}
+                        className="card-in border p-6 flex flex-col transition-shadow"
+                        style={{
+                          animationDelay: `${i * 80}ms`,
+                          borderColor: isSelected ? "var(--primary)" : "var(--color-border)",
+                          backgroundColor: "#141416",
+                          boxShadow: isSelected
+                            ? "0 0 0 1px var(--primary), 0 10px 40px -20px color-mix(in oklab, var(--primary) 60%, transparent)"
+                            : undefined,
+                        }}
+                      >
+                        <h3 className="font-display text-xl leading-tight mb-5">{idea.title}</h3>
+                        <div className="space-y-2 mb-5 text-xs">
+                          <Rating icon="⚡" label="Hook Strength" value={idea.hook} />
+                          <Rating icon="❤️" label="Emotional Engagement" value={idea.emotion} />
+                          <Rating icon="🎯" label="Relevancy" value={idea.relevancy} />
+                          <Rating icon="📈" label="Virality Potential" value={idea.virality} />
+                        </div>
+                        <div className="flex items-baseline justify-between border-t border-border pt-4 mb-4">
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Average Score</span>
+                          <span className="font-display font-bold text-2xl text-primary">{avg} <span className="text-sm text-muted-foreground font-normal">/ 5</span></span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedIdea(idea)}
+                          className="mt-auto w-full py-2.5 text-xs uppercase tracking-wider font-medium bg-primary text-primary-foreground hover:opacity-90 transition"
+                        >
+                          {isSelected ? "✓ Selected" : "Select This Angle →"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Step>
+            )}
+
+            {/* OUTPUT */}
+            {packs && (
+              <Step n={5} title="Generated content packages">
+                <div className="space-y-6">
+                  {packs.map((p, i) => {
+                    const slot = slots[i];
+                    const slotNiche = NICHES.find((n) => n.key === slot?.niche);
+                    return (
+                      <div key={i} className="card-in border border-border bg-card p-5" style={{ animationDelay: `${i * 100}ms` }}>
+                        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                          <div className="font-display uppercase text-sm tracking-wider">Post {i + 1} · {slot?.time}</div>
+                          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
+                            <span>{slotNiche?.emoji} {slotNiche?.label}</span>
+                            <span>·</span>
+                            <span>{slot?.tone}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <Section label="Hook" content={p.hook} onCopy={() => copy(p.hook)} />
+                          <Section label="Script" content={p.script} onCopy={() => copy(p.script)} />
+                          <Section label="Caption" content={p.caption} onCopy={() => copy(p.caption)} />
+                          <Section label="CTA" content={p.cta} onCopy={() => copy(p.cta)} />
+                          <Section label="Hashtags" content={p.hashtags} onCopy={() => copy(p.hashtags)} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {scheduledCount > 0 && (
+                  <div className="mt-6 border border-primary bg-card p-6 card-in">
+                    <div className="font-display text-xl text-primary mb-2">✅ {scheduledCount} posts scheduled.</div>
+                    <div className="text-sm text-muted-foreground mb-1">Your content machine is running.</div>
+                    <p className="text-xs text-muted-foreground mt-3">Auto-posting via Metricool API — Phase 2</p>
+                  </div>
+                )}
+              </Step>
+            )}
+          </div>
+
+          {/* RIGHT — Persistent Plan Your Day */}
+          <aside className="lg:col-span-1">
+            <div className="lg:sticky lg:top-6 border border-border bg-card p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-7 h-7 inline-flex items-center justify-center text-xs font-display border border-secondary text-secondary">
+                  📅
+                </span>
+                <div>
+                  <h2 className="font-display uppercase text-sm tracking-wider">Plan your day</h2>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Persistent — survives niche & angle changes</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {slots.map((slot, i) => (
+                  <div key={slot.id} className="border border-border p-3" style={{ backgroundColor: "#101012" }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot {i + 1}</div>
+                      <div className="flex items-center gap-2">
+                        {slot.scheduled && (
+                          <span className="text-[10px] px-2 py-0.5 border" style={{ borderColor: "var(--primary)", color: "var(--primary)", backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
+                            🟣 Scheduled
+                          </span>
+                        )}
+                        {slot.scheduled ? (
+                          <button onClick={() => cancelSlot(slot.id)} className="text-[10px] text-muted-foreground hover:text-destructive transition">Cancel</button>
+                        ) : (
+                          slots.length > 1 && (
+                            <button onClick={() => removeSlot(slot.id)} className="text-xs text-muted-foreground hover:text-destructive transition px-1">✕</button>
+                          )
+                        )}
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <Section label="Hook" color="#e8ff47" content={p.hook} onCopy={() => copy(p.hook)} />
-                      <Section label="Script" color="#ff6b35" content={p.script} onCopy={() => copy(p.script)} />
-                      <Section label="Caption" color="#47d4ff" content={p.caption} onCopy={() => copy(p.caption)} />
-                      <Section label="CTA" color="#b266ff" content={p.cta} onCopy={() => copy(p.cta)} />
-                      <Section label="Hashtags" color="#3dff9a" content={p.hashtags} onCopy={() => copy(p.hashtags)} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
 
-            {/* STEP 7 — Schedule all */}
-            {!scheduled ? (
-              <button
-                onClick={() => setScheduled(true)}
-                className="mt-6 w-full py-4 font-display uppercase tracking-wider text-sm bg-primary text-primary-foreground hover:opacity-90 transition"
-              >
-                🗓 Schedule All Posts
-              </button>
-            ) : (
-              <div className="mt-6 border border-primary bg-card p-6 card-in">
-                <div className="font-display text-xl text-primary mb-2">✅ All {packs.length} posts scheduled for today.</div>
-                <div className="text-sm text-muted-foreground mb-4">Your content machine is running.</div>
-                <ul className="space-y-2 text-sm">
-                  {slots.slice(0, packs.length).map((s, i) => (
-                    <li key={s.id} className="flex justify-between border-b border-border py-2">
-                      <span>Post {i + 1} · {s.tone}</span>
-                      <span className="text-primary font-mono">{s.time}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground mt-4">Auto-posting via Metricool API — Phase 2</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="time"
+                        value={slot.time}
+                        onChange={(e) => updateSlot(slot.id, { time: e.target.value })}
+                        className="input !py-1.5 text-xs"
+                      />
+                      <select
+                        value={slot.niche}
+                        onChange={(e) => updateSlot(slot.id, { niche: e.target.value })}
+                        className="input !py-1.5 text-xs"
+                      >
+                        {NICHES.map((n) => <option key={n.key} value={n.key}>{n.emoji} {n.label}</option>)}
+                      </select>
+                    </div>
+                    <select
+                      value={slot.tone}
+                      onChange={(e) => updateSlot(slot.id, { tone: e.target.value })}
+                      className="input !py-1.5 text-xs mt-2"
+                    >
+                      {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input
+                      value={slot.hook}
+                      onChange={(e) => updateSlot(slot.id, { hook: e.target.value })}
+                      placeholder="Hook / angle title"
+                      className="input !py-1.5 text-xs mt-2"
+                    />
+                  </div>
+                ))}
               </div>
-            )}
-          </Step>
-        )}
+
+              {slots.length < 4 && (
+                <button
+                  onClick={addSlot}
+                  className="mt-3 w-full text-xs border border-border px-3 py-2 hover:border-primary hover:text-primary transition"
+                >
+                  + Add Slot
+                </button>
+              )}
+
+              <div className="mt-5">
+                {!generating ? (
+                  <button
+                    onClick={generateAll}
+                    className="w-full py-3 font-display uppercase tracking-wider text-xs bg-primary text-primary-foreground hover:opacity-90 transition"
+                  >
+                    ⚡ Generate All Scripts
+                  </button>
+                ) : (
+                  <StepTracker steps={GEN_STEPS} active={genStep} />
+                )}
+                {genError && <p className="text-destructive text-xs mt-3">{genError}</p>}
+              </div>
+            </div>
+          </aside>
+        </div>
 
         <footer className="mt-20 text-xs text-muted-foreground">
           un-reel engine // v0.3 prototype
@@ -517,7 +617,7 @@ function Index() {
   );
 }
 
-function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+function Step({ n, title, children }: { n: number | string; title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
       <div className="flex items-center gap-3 mb-4">
@@ -565,12 +665,12 @@ function Rating({ icon, label, value }: { icon: string; label: string; value: nu
   );
 }
 
-function Section({ label, color, content, onCopy }: { label: string; color: string; content: string; onCopy: () => void }) {
+function Section({ label, content, onCopy }: { label: string; content: string; onCopy: () => void }) {
   return (
     <div className="border border-border p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-2 h-2" style={{ backgroundColor: color }} />
+          <span className="inline-block w-2 h-2" style={{ backgroundColor: "var(--secondary)" }} />
           <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
         </div>
         <button onClick={onCopy} className="text-xs text-muted-foreground hover:text-foreground transition">Copy</button>
