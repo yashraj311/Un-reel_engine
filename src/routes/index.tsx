@@ -40,7 +40,7 @@ const SUGGESTED_TONE: Record<string, { tone: string; reason: string }> = {
   business: { tone: "Controversial", reason: "Business takes earn engagement when they challenge consensus." },
 };
 
-const DURATIONS = ["30s", "45s", "60s", "90s"];
+const DURATIONS = ["30s", "60s", "90s"];
 
 const RESEARCH_STEPS = [
   "Scanning viral content in niche...",
@@ -500,8 +500,8 @@ function Index() {
           <aside className="lg:col-span-1">
             <div className="lg:sticky lg:top-6 border border-border bg-card p-5">
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-7 h-7 inline-flex items-center justify-center text-sm">
-                  📌
+                <span className="w-7 h-7 inline-flex items-center justify-center text-xs font-display border border-secondary text-secondary">
+                  📅
                 </span>
                 <div>
                   <h2 className="font-display uppercase text-sm tracking-wider">Plan your day</h2>
