@@ -40,7 +40,7 @@ const SUGGESTED_TONE: Record<string, { tone: string; reason: string }> = {
   business: { tone: "Controversial", reason: "Business takes earn engagement when they challenge consensus." },
 };
 
-const DURATIONS = ["30s", "60s", "90s"];
+const DURATIONS = ["30s", "45s", "60s", "90s"];
 
 const RESEARCH_STEPS = [
   "Scanning viral content in niche...",
