@@ -40,7 +40,7 @@ const SUGGESTED_TONE: Record<string, { tone: string; reason: string }> = {
   business: { tone: "Controversial", reason: "Business takes earn engagement when they challenge consensus." },
 };
 
-const DURATIONS = ["30s", "60s", "90s"];
+const DURATIONS = ["30s", "45s", "60s", "90s"];
 
 const RESEARCH_STEPS = [
   "Scanning viral content in niche...",
@@ -123,18 +123,14 @@ function Index() {
   const [genStep, setGenStep] = useState(0);
   const [packs, setPacks] = useState<Pack[] | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [scheduled, setScheduled] = useState(false);
+  const [openSlotMenu, setOpenSlotMenu] = useState<string | null>(null);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
 
   const niche = NICHES.find((n) => n.key === nicheKey)!;
   const suggestion = SUGGESTED_TONE[nicheKey];
-
-  // When user selects an angle, auto-fill blank hook fields in slots
-  useEffect(() => {
-    if (!selectedIdea) return;
-    setSlots((prev) => prev.map((s) => (s.hook.trim() ? s : { ...s, hook: selectedIdea.title })));
-  }, [selectedIdea]);
 
   function clearTimers() {
     timersRef.current.forEach(clearTimeout);
@@ -174,20 +170,25 @@ function Index() {
       id: `s${Date.now()}`,
       time: "12:00",
       niche: nicheKey,
-      tone: SUGGESTED_TONE[nicheKey].tone,
-      hook: selectedIdea?.title || "",
+      tone: tone,
+      hook: "",
     }]);
   }
-  function removeSlot(id: string) {
-    setSlots(slots.filter((s) => s.id !== id));
+  function clearSlot(id: string) {
+    setSlots(slots.map((s) => (s.id === id ? { ...s, time: "", hook: "", niche: "", tone: "", scheduled: false } : s)));
   }
   function updateSlot(id: string, patch: Partial<Slot>) {
     setSlots(slots.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+  function assignAngleToSlot(slotId: string, title: string) {
+    setSlots((prev) => prev.map((s) => (s.id === slotId ? { ...s, hook: title } : s)));
+    setOpenSlotMenu(null);
   }
 
   async function generateAll() {
     setGenError(null);
     setPacks(null);
+    setScheduled(false);
     setGenerating(true);
     const stepsDone = runSteps(GEN_STEPS.length, setGenStep);
 
@@ -197,8 +198,8 @@ function Index() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            niche: slot.niche,
-            tone: slot.tone,
+            niche: slot.niche || nicheKey,
+            tone: slot.tone || tone,
             topic: slot.hook || topic || niche.label,
             angle: slot.hook || selectedIdea?.title,
             duration,
@@ -212,8 +213,6 @@ function Index() {
       );
       const [results] = await Promise.all([Promise.all(requests), stepsDone]);
       setPacks(results);
-      // mark all slots scheduled
-      setSlots((prev) => prev.map((s) => ({ ...s, scheduled: true })));
     } catch (e) {
       await stepsDone.catch(() => {});
       console.error(e);
@@ -221,6 +220,11 @@ function Index() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function scheduleAll() {
+    setSlots((prev) => prev.map((s) => ({ ...s, scheduled: true })));
+    setScheduled(true);
   }
 
   function cancelSlot(id: string) {
@@ -232,7 +236,7 @@ function Index() {
   const scheduledCount = slots.filter((s) => s.scheduled).length;
 
   return (
-    <div className="grain min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
+    <div className="grain min-h-screen" style={{ backgroundColor: "#F1F5F9" }}>
       <div className="mx-auto max-w-7xl px-5 py-8">
         <header className="flex items-start justify-between gap-4 mb-10">
           <div className="flex items-center gap-3">
@@ -427,7 +431,7 @@ function Index() {
                         style={{
                           animationDelay: `${i * 80}ms`,
                           borderColor: isSelected ? "var(--primary)" : "var(--color-border)",
-                          backgroundColor: "#141416",
+                          backgroundColor: "var(--card)",
                           boxShadow: isSelected
                             ? "0 0 0 1px var(--primary), 0 10px 40px -20px color-mix(in oklab, var(--primary) 60%, transparent)"
                             : undefined,
@@ -444,12 +448,28 @@ function Index() {
                           <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Average Score</span>
                           <span className="font-display font-bold text-2xl text-primary">{avg} <span className="text-sm text-muted-foreground font-normal">/ 5</span></span>
                         </div>
-                        <button
-                          onClick={() => setSelectedIdea(idea)}
-                          className="mt-auto w-full py-2.5 text-xs uppercase tracking-wider font-medium bg-primary text-primary-foreground hover:opacity-90 transition"
-                        >
-                          {isSelected ? "✓ Selected" : "Select This Angle →"}
-                        </button>
+                        <div className="relative mt-auto group">
+                          <button
+                            onClick={() => setSelectedIdea(idea)}
+                            className="w-full py-2.5 text-xs uppercase tracking-wider font-medium bg-primary text-primary-foreground hover:opacity-90 transition"
+                          >
+                            {isSelected ? "✓ Selected" : "Select This Angle →"}
+                          </button>
+                          <div className="absolute left-0 right-0 top-full pt-1 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
+                            <div className="border border-border bg-card shadow-lg">
+                              {slots.map((s, si) => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => { setSelectedIdea(idea); assignAngleToSlot(s.id, idea.title); }}
+                                  className="block w-full text-left px-3 py-2 text-xs hover:bg-muted transition"
+                                >
+                                  Add to Slot {si + 1}{s.time ? ` · ${s.time}` : ""}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -485,10 +505,23 @@ function Index() {
                     );
                   })}
                 </div>
-                {scheduledCount > 0 && (
+                {!scheduled ? (
+                  <button
+                    onClick={scheduleAll}
+                    className="mt-6 w-full py-3 font-display uppercase tracking-wider text-xs bg-secondary text-secondary-foreground hover:opacity-90 transition"
+                  >
+                    📅 Schedule All
+                  </button>
+                ) : (
                   <div className="mt-6 border border-primary bg-card p-6 card-in">
                     <div className="font-display text-xl text-primary mb-2">✅ {scheduledCount} posts scheduled.</div>
                     <div className="text-sm text-muted-foreground mb-1">Your content machine is running.</div>
+                    <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                      {slots.filter((s) => s.scheduled).map((s, i) => {
+                        const sn = NICHES.find((n) => n.key === s.niche);
+                        return <li key={s.id}>· {s.time || "—"} — {sn ? `${sn.emoji} ${sn.label}` : ""} {s.hook ? `· ${s.hook}` : ""}</li>;
+                      })}
+                    </ul>
                     <p className="text-xs text-muted-foreground mt-3">Auto-posting via Metricool API — Phase 2</p>
                   </div>
                 )}
@@ -500,8 +533,8 @@ function Index() {
           <aside className="lg:col-span-1">
             <div className="lg:sticky lg:top-6 border border-border bg-card p-5">
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-7 h-7 inline-flex items-center justify-center text-xs font-display border border-secondary text-secondary">
-                  📅
+                <span className="w-7 h-7 inline-flex items-center justify-center text-base">
+                  📌
                 </span>
                 <div>
                   <h2 className="font-display uppercase text-sm tracking-wider">Plan your day</h2>
@@ -510,56 +543,46 @@ function Index() {
               </div>
 
               <div className="space-y-3">
-                {slots.map((slot, i) => (
-                  <div key={slot.id} className="border border-border p-3" style={{ backgroundColor: "#101012" }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot {i + 1}</div>
-                      <div className="flex items-center gap-2">
-                        {slot.scheduled && (
-                          <span className="text-[10px] px-2 py-0.5 border" style={{ borderColor: "var(--primary)", color: "var(--primary)", backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
-                            🟣 Scheduled
-                          </span>
-                        )}
-                        {slot.scheduled ? (
-                          <button onClick={() => cancelSlot(slot.id)} className="text-[10px] text-muted-foreground hover:text-destructive transition">Cancel</button>
-                        ) : (
-                          slots.length > 1 && (
-                            <button onClick={() => removeSlot(slot.id)} className="text-xs text-muted-foreground hover:text-destructive transition px-1">✕</button>
-                          )
-                        )}
+                {slots.map((slot, i) => {
+                  const slotNiche = NICHES.find((n) => n.key === slot.niche);
+                  return (
+                    <div key={slot.id} className="border border-border p-3 bg-muted/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot {i + 1}</div>
+                        <div className="flex items-center gap-2">
+                          {slot.scheduled && (
+                            <span className="text-[10px] px-2 py-0.5 border" style={{ borderColor: "var(--primary)", color: "var(--primary)", backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
+                              🟣 Scheduled
+                            </span>
+                          )}
+                          {slot.scheduled ? (
+                            <button onClick={() => cancelSlot(slot.id)} className="text-[10px] text-muted-foreground hover:text-destructive transition">Cancel</button>
+                          ) : (
+                            <button onClick={() => clearSlot(slot.id)} title="Clear slot" className="text-xs text-muted-foreground hover:text-destructive transition px-1">✕</button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-2">
                       <input
                         type="time"
                         value={slot.time}
                         onChange={(e) => updateSlot(slot.id, { time: e.target.value })}
                         className="input !py-1.5 text-xs"
                       />
-                      <select
-                        value={slot.niche}
-                        onChange={(e) => updateSlot(slot.id, { niche: e.target.value })}
-                        className="input !py-1.5 text-xs"
-                      >
-                        {NICHES.map((n) => <option key={n.key} value={n.key}>{n.emoji} {n.label}</option>)}
-                      </select>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                        <span>{slotNiche ? `${slotNiche.emoji} ${slotNiche.label}` : "— niche —"}</span>
+                        <span>·</span>
+                        <span>{slot.tone || "— tone —"}</span>
+                      </div>
+                      <input
+                        value={slot.hook}
+                        onChange={(e) => updateSlot(slot.id, { hook: e.target.value })}
+                        placeholder="Hook / angle title"
+                        className="input !py-1.5 text-xs mt-2"
+                      />
                     </div>
-                    <select
-                      value={slot.tone}
-                      onChange={(e) => updateSlot(slot.id, { tone: e.target.value })}
-                      className="input !py-1.5 text-xs mt-2"
-                    >
-                      {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <input
-                      value={slot.hook}
-                      onChange={(e) => updateSlot(slot.id, { hook: e.target.value })}
-                      placeholder="Hook / angle title"
-                      className="input !py-1.5 text-xs mt-2"
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {slots.length < 4 && (
@@ -596,7 +619,7 @@ function Index() {
       <style>{`
         .input {
           width: 100%;
-          background: #0a0a0a;
+          background: var(--color-input);
           border: 1px solid var(--color-border);
           color: var(--color-foreground);
           padding: 0.65rem 0.8rem;
