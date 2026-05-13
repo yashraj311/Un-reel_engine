@@ -619,7 +619,7 @@ function Index() {
       <style>{`
         .input {
           width: 100%;
-          background: #0a0a0a;
+          background: var(--color-input);
           border: 1px solid var(--color-border);
           color: var(--color-foreground);
           padding: 0.65rem 0.8rem;
