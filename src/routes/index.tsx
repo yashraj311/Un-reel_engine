@@ -57,8 +57,8 @@ const GEN_STEPS = [
 const STEP_DELAY = 1000;
 
 type Idea = {
-  title: string;
-  hook: number;
+  hook: string;
+  hookStrength: number;
   emotion: number;
   relevancy: number;
   virality: number;
@@ -152,14 +152,48 @@ function Index() {
     setIdeas(null);
     setSelectedIdea(null);
     setResearching(true);
-    await runSteps(RESEARCH_STEPS.length, setResearchStep);
+    const stepsDone = runSteps(RESEARCH_STEPS.length, setResearchStep);
     const baseTopic = weekly ? (weeklyTopic || "weekly summary") : (topic || niche.label);
-    const generated: Idea[] = [
-      { title: `Why everyone is wrong about ${baseTopic}`, hook: 5, emotion: 4, relevancy: 4, virality: 5 },
-      { title: `The 3-step ${baseTopic} system nobody talks about`, hook: 4, emotion: 4, relevancy: 5, virality: 4 },
-      { title: `I tried ${baseTopic} for 30 days — here's what happened`, hook: 5, emotion: 5, relevancy: 4, virality: 4 },
-      { title: `${baseTopic}: the brutal truth in 60 seconds`, hook: 4, emotion: 5, relevancy: 4, virality: 5 },
+
+    const fallback: Idea[] = [
+      { hook: `The brutal truth about ${baseTopic} nobody will tell you`, hookStrength: 5, emotion: 4, relevancy: 4, virality: 5 },
+      { hook: `I tried ${baseTopic} for 30 days — here's what actually happened`, hookStrength: 4, emotion: 5, relevancy: 5, virality: 4 },
+      { hook: `Stop doing ${baseTopic} wrong — do this instead`, hookStrength: 5, emotion: 5, relevancy: 4, virality: 4 },
+      { hook: `${baseTopic} explained in 60 seconds (save this)`, hookStrength: 4, emotion: 4, relevancy: 5, virality: 5 },
     ];
+
+    let generated: Idea[] = fallback;
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "research",
+          niche: nicheKey,
+          tone,
+          topic: baseTopic,
+          duration,
+          weeklySummary: weekly ? weeklyTopic : undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : (data?.ideas ?? data?.angles);
+        if (Array.isArray(arr) && arr.length) {
+          generated = arr.slice(0, 4).map((it: any, i: number) => ({
+            hook: String(it.hook ?? it.title ?? fallback[i]?.hook ?? ""),
+            hookStrength: Number(it.hookStrength ?? it.hook_strength ?? it.strength ?? 4),
+            emotion: Number(it.emotion ?? it.emotional ?? 4),
+            relevancy: Number(it.relevancy ?? it.relevance ?? 4),
+            virality: Number(it.virality ?? it.viral ?? 4),
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn("Research API fallback:", e);
+    }
+
+    await stepsDone;
     setIdeas(generated);
     setResearching(false);
   }
@@ -201,7 +235,7 @@ function Index() {
             niche: slot.niche || nicheKey,
             tone: slot.tone || tone,
             topic: slot.hook || topic || niche.label,
-            angle: slot.hook || selectedIdea?.title,
+            angle: slot.hook || selectedIdea?.hook,
             duration,
             timeSlot: slot.time,
             weeklySummary: weekly ? weeklyTopic : undefined,
@@ -422,11 +456,11 @@ function Index() {
               <Step n={4} title="Top viral angles">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {ideas.map((idea, i) => {
-                    const avg = ((idea.hook + idea.emotion + idea.relevancy + idea.virality) / 4).toFixed(1);
-                    const isSelected = selectedIdea?.title === idea.title;
+                    const avg = ((idea.hookStrength + idea.emotion + idea.relevancy + idea.virality) / 4).toFixed(1);
+                    const isSelected = selectedIdea?.hook === idea.hook;
                     return (
                       <div
-                        key={idea.title}
+                        key={idea.hook}
                         className="card-in border p-6 flex flex-col transition-shadow"
                         style={{
                           animationDelay: `${i * 80}ms`,
@@ -437,9 +471,9 @@ function Index() {
                             : undefined,
                         }}
                       >
-                        <h3 className="font-display text-xl leading-tight mb-5">{idea.title}</h3>
+                        <h3 className="font-display text-xl leading-tight mb-5">{idea.hook}</h3>
                         <div className="space-y-2 mb-5 text-xs">
-                          <Rating icon="⚡" label="Hook Strength" value={idea.hook} />
+                          <Rating icon="⚡" label="Hook Strength" value={idea.hookStrength} />
                           <Rating icon="❤️" label="Emotional Engagement" value={idea.emotion} />
                           <Rating icon="🎯" label="Relevancy" value={idea.relevancy} />
                           <Rating icon="📈" label="Virality Potential" value={idea.virality} />
@@ -455,18 +489,22 @@ function Index() {
                           >
                             {isSelected ? "✓ Selected" : "Select This Angle →"}
                           </button>
-                          <div className="absolute left-0 right-0 top-full pt-1 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-                            <div className="border border-border bg-card shadow-lg">
-                              {slots.map((s, si) => (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  onClick={() => { setSelectedIdea(idea); assignAngleToSlot(s.id, idea.title); }}
-                                  className="block w-full text-left px-3 py-2 text-xs hover:bg-muted transition"
-                                >
-                                  Add to Slot {si + 1}{s.time ? ` · ${s.time}` : ""}
-                                </button>
-                              ))}
+                          <div className="absolute left-0 right-0 top-full pt-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
+                            <div className="border border-border bg-card shadow-lg min-w-[200px]">
+                              {slots.length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-muted-foreground">No slots yet — add one in Plan Your Day</div>
+                              ) : (
+                                slots.map((s, si) => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => { setSelectedIdea(idea); assignAngleToSlot(s.id, idea.hook); }}
+                                    className="block w-full text-left px-3 py-2 text-xs hover:bg-muted transition"
+                                  >
+                                    Add to Slot {si + 1}{s.time ? ` · ${s.time}` : ""}
+                                  </button>
+                                ))
+                              )}
                             </div>
                           </div>
                         </div>
