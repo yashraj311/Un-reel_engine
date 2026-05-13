@@ -235,7 +235,7 @@ function Index() {
             niche: slot.niche || nicheKey,
             tone: slot.tone || tone,
             topic: slot.hook || topic || niche.label,
-            angle: slot.hook || selectedIdea?.title,
+            angle: slot.hook || selectedIdea?.hook,
             duration,
             timeSlot: slot.time,
             weeklySummary: weekly ? weeklyTopic : undefined,
