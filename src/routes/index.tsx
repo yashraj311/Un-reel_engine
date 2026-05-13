@@ -123,18 +123,14 @@ function Index() {
   const [genStep, setGenStep] = useState(0);
   const [packs, setPacks] = useState<Pack[] | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [scheduled, setScheduled] = useState(false);
+  const [openSlotMenu, setOpenSlotMenu] = useState<string | null>(null);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
 
   const niche = NICHES.find((n) => n.key === nicheKey)!;
   const suggestion = SUGGESTED_TONE[nicheKey];
-
-  // When user selects an angle, auto-fill blank hook fields in slots
-  useEffect(() => {
-    if (!selectedIdea) return;
-    setSlots((prev) => prev.map((s) => (s.hook.trim() ? s : { ...s, hook: selectedIdea.title })));
-  }, [selectedIdea]);
 
   function clearTimers() {
     timersRef.current.forEach(clearTimeout);
@@ -174,20 +170,25 @@ function Index() {
       id: `s${Date.now()}`,
       time: "12:00",
       niche: nicheKey,
-      tone: SUGGESTED_TONE[nicheKey].tone,
-      hook: selectedIdea?.title || "",
+      tone: tone,
+      hook: "",
     }]);
   }
-  function removeSlot(id: string) {
-    setSlots(slots.filter((s) => s.id !== id));
+  function clearSlot(id: string) {
+    setSlots(slots.map((s) => (s.id === id ? { ...s, time: "", hook: "", niche: "", tone: "", scheduled: false } : s)));
   }
   function updateSlot(id: string, patch: Partial<Slot>) {
     setSlots(slots.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+  function assignAngleToSlot(slotId: string, title: string) {
+    setSlots((prev) => prev.map((s) => (s.id === slotId ? { ...s, hook: title } : s)));
+    setOpenSlotMenu(null);
   }
 
   async function generateAll() {
     setGenError(null);
     setPacks(null);
+    setScheduled(false);
     setGenerating(true);
     const stepsDone = runSteps(GEN_STEPS.length, setGenStep);
 
@@ -197,8 +198,8 @@ function Index() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            niche: slot.niche,
-            tone: slot.tone,
+            niche: slot.niche || nicheKey,
+            tone: slot.tone || tone,
             topic: slot.hook || topic || niche.label,
             angle: slot.hook || selectedIdea?.title,
             duration,
@@ -212,8 +213,6 @@ function Index() {
       );
       const [results] = await Promise.all([Promise.all(requests), stepsDone]);
       setPacks(results);
-      // mark all slots scheduled
-      setSlots((prev) => prev.map((s) => ({ ...s, scheduled: true })));
     } catch (e) {
       await stepsDone.catch(() => {});
       console.error(e);
@@ -221,6 +220,11 @@ function Index() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function scheduleAll() {
+    setSlots((prev) => prev.map((s) => ({ ...s, scheduled: true })));
+    setScheduled(true);
   }
 
   function cancelSlot(id: string) {
