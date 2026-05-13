@@ -448,12 +448,28 @@ function Index() {
                           <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Average Score</span>
                           <span className="font-display font-bold text-2xl text-primary">{avg} <span className="text-sm text-muted-foreground font-normal">/ 5</span></span>
                         </div>
-                        <button
-                          onClick={() => setSelectedIdea(idea)}
-                          className="mt-auto w-full py-2.5 text-xs uppercase tracking-wider font-medium bg-primary text-primary-foreground hover:opacity-90 transition"
-                        >
-                          {isSelected ? "✓ Selected" : "Select This Angle →"}
-                        </button>
+                        <div className="relative mt-auto group">
+                          <button
+                            onClick={() => setSelectedIdea(idea)}
+                            className="w-full py-2.5 text-xs uppercase tracking-wider font-medium bg-primary text-primary-foreground hover:opacity-90 transition"
+                          >
+                            {isSelected ? "✓ Selected" : "Select This Angle →"}
+                          </button>
+                          <div className="absolute left-0 right-0 top-full pt-1 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
+                            <div className="border border-border bg-card shadow-lg">
+                              {slots.map((s, si) => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => { setSelectedIdea(idea); assignAngleToSlot(s.id, idea.title); }}
+                                  className="block w-full text-left px-3 py-2 text-xs hover:bg-muted transition"
+                                >
+                                  Add to Slot {si + 1}{s.time ? ` · ${s.time}` : ""}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
