@@ -152,14 +152,48 @@ function Index() {
     setIdeas(null);
     setSelectedIdea(null);
     setResearching(true);
-    await runSteps(RESEARCH_STEPS.length, setResearchStep);
+    const stepsDone = runSteps(RESEARCH_STEPS.length, setResearchStep);
     const baseTopic = weekly ? (weeklyTopic || "weekly summary") : (topic || niche.label);
-    const generated: Idea[] = [
-      { title: `Why everyone is wrong about ${baseTopic}`, hook: 5, emotion: 4, relevancy: 4, virality: 5 },
-      { title: `The 3-step ${baseTopic} system nobody talks about`, hook: 4, emotion: 4, relevancy: 5, virality: 4 },
-      { title: `I tried ${baseTopic} for 30 days — here's what happened`, hook: 5, emotion: 5, relevancy: 4, virality: 4 },
-      { title: `${baseTopic}: the brutal truth in 60 seconds`, hook: 4, emotion: 5, relevancy: 4, virality: 5 },
+
+    const fallback: Idea[] = [
+      { hook: `The brutal truth about ${baseTopic} nobody will tell you`, hookStrength: 5, emotion: 4, relevancy: 4, virality: 5 },
+      { hook: `I tried ${baseTopic} for 30 days — here's what actually happened`, hookStrength: 4, emotion: 5, relevancy: 5, virality: 4 },
+      { hook: `Stop doing ${baseTopic} wrong — do this instead`, hookStrength: 5, emotion: 5, relevancy: 4, virality: 4 },
+      { hook: `${baseTopic} explained in 60 seconds (save this)`, hookStrength: 4, emotion: 4, relevancy: 5, virality: 5 },
     ];
+
+    let generated: Idea[] = fallback;
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "research",
+          niche: nicheKey,
+          tone,
+          topic: baseTopic,
+          duration,
+          weeklySummary: weekly ? weeklyTopic : undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : (data?.ideas ?? data?.angles);
+        if (Array.isArray(arr) && arr.length) {
+          generated = arr.slice(0, 4).map((it: any, i: number) => ({
+            hook: String(it.hook ?? it.title ?? fallback[i]?.hook ?? ""),
+            hookStrength: Number(it.hookStrength ?? it.hook_strength ?? it.strength ?? 4),
+            emotion: Number(it.emotion ?? it.emotional ?? 4),
+            relevancy: Number(it.relevancy ?? it.relevance ?? 4),
+            virality: Number(it.virality ?? it.viral ?? 4),
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn("Research API fallback:", e);
+    }
+
+    await stepsDone;
     setIdeas(generated);
     setResearching(false);
   }
