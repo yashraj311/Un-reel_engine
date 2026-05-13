@@ -57,8 +57,8 @@ const GEN_STEPS = [
 const STEP_DELAY = 1000;
 
 type Idea = {
-  title: string;
-  hook: number;
+  hook: string;
+  hookStrength: number;
   emotion: number;
   relevancy: number;
   virality: number;
