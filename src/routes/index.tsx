@@ -520,8 +520,8 @@ function Index() {
           <aside className="lg:col-span-1">
             <div className="lg:sticky lg:top-6 border border-border bg-card p-5">
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-7 h-7 inline-flex items-center justify-center text-xs font-display border border-secondary text-secondary">
-                  📅
+                <span className="w-7 h-7 inline-flex items-center justify-center text-base">
+                  📌
                 </span>
                 <div>
                   <h2 className="font-display uppercase text-sm tracking-wider">Plan your day</h2>
@@ -530,56 +530,46 @@ function Index() {
               </div>
 
               <div className="space-y-3">
-                {slots.map((slot, i) => (
-                  <div key={slot.id} className="border border-border p-3" style={{ backgroundColor: "#101012" }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot {i + 1}</div>
-                      <div className="flex items-center gap-2">
-                        {slot.scheduled && (
-                          <span className="text-[10px] px-2 py-0.5 border" style={{ borderColor: "var(--primary)", color: "var(--primary)", backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
-                            🟣 Scheduled
-                          </span>
-                        )}
-                        {slot.scheduled ? (
-                          <button onClick={() => cancelSlot(slot.id)} className="text-[10px] text-muted-foreground hover:text-destructive transition">Cancel</button>
-                        ) : (
-                          slots.length > 1 && (
-                            <button onClick={() => removeSlot(slot.id)} className="text-xs text-muted-foreground hover:text-destructive transition px-1">✕</button>
-                          )
-                        )}
+                {slots.map((slot, i) => {
+                  const slotNiche = NICHES.find((n) => n.key === slot.niche);
+                  return (
+                    <div key={slot.id} className="border border-border p-3 bg-muted/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot {i + 1}</div>
+                        <div className="flex items-center gap-2">
+                          {slot.scheduled && (
+                            <span className="text-[10px] px-2 py-0.5 border" style={{ borderColor: "var(--primary)", color: "var(--primary)", backgroundColor: "color-mix(in oklab, var(--primary) 12%, transparent)" }}>
+                              🟣 Scheduled
+                            </span>
+                          )}
+                          {slot.scheduled ? (
+                            <button onClick={() => cancelSlot(slot.id)} className="text-[10px] text-muted-foreground hover:text-destructive transition">Cancel</button>
+                          ) : (
+                            <button onClick={() => clearSlot(slot.id)} title="Clear slot" className="text-xs text-muted-foreground hover:text-destructive transition px-1">✕</button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-2">
                       <input
                         type="time"
                         value={slot.time}
                         onChange={(e) => updateSlot(slot.id, { time: e.target.value })}
                         className="input !py-1.5 text-xs"
                       />
-                      <select
-                        value={slot.niche}
-                        onChange={(e) => updateSlot(slot.id, { niche: e.target.value })}
-                        className="input !py-1.5 text-xs"
-                      >
-                        {NICHES.map((n) => <option key={n.key} value={n.key}>{n.emoji} {n.label}</option>)}
-                      </select>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                        <span>{slotNiche ? `${slotNiche.emoji} ${slotNiche.label}` : "— niche —"}</span>
+                        <span>·</span>
+                        <span>{slot.tone || "— tone —"}</span>
+                      </div>
+                      <input
+                        value={slot.hook}
+                        onChange={(e) => updateSlot(slot.id, { hook: e.target.value })}
+                        placeholder="Hook / angle title"
+                        className="input !py-1.5 text-xs mt-2"
+                      />
                     </div>
-                    <select
-                      value={slot.tone}
-                      onChange={(e) => updateSlot(slot.id, { tone: e.target.value })}
-                      className="input !py-1.5 text-xs mt-2"
-                    >
-                      {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <input
-                      value={slot.hook}
-                      onChange={(e) => updateSlot(slot.id, { hook: e.target.value })}
-                      placeholder="Hook / angle title"
-                      className="input !py-1.5 text-xs mt-2"
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {slots.length < 4 && (
