@@ -505,10 +505,23 @@ function Index() {
                     );
                   })}
                 </div>
-                {scheduledCount > 0 && (
+                {!scheduled ? (
+                  <button
+                    onClick={scheduleAll}
+                    className="mt-6 w-full py-3 font-display uppercase tracking-wider text-xs bg-secondary text-secondary-foreground hover:opacity-90 transition"
+                  >
+                    📅 Schedule All
+                  </button>
+                ) : (
                   <div className="mt-6 border border-primary bg-card p-6 card-in">
                     <div className="font-display text-xl text-primary mb-2">✅ {scheduledCount} posts scheduled.</div>
                     <div className="text-sm text-muted-foreground mb-1">Your content machine is running.</div>
+                    <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                      {slots.filter((s) => s.scheduled).map((s, i) => {
+                        const sn = NICHES.find((n) => n.key === s.niche);
+                        return <li key={s.id}>· {s.time || "—"} — {sn ? `${sn.emoji} ${sn.label}` : ""} {s.hook ? `· ${s.hook}` : ""}</li>;
+                      })}
+                    </ul>
                     <p className="text-xs text-muted-foreground mt-3">Auto-posting via Metricool API — Phase 2</p>
                   </div>
                 )}
