@@ -456,11 +456,11 @@ function Index() {
               <Step n={4} title="Top viral angles">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {ideas.map((idea, i) => {
-                    const avg = ((idea.hook + idea.emotion + idea.relevancy + idea.virality) / 4).toFixed(1);
-                    const isSelected = selectedIdea?.title === idea.title;
+                    const avg = ((idea.hookStrength + idea.emotion + idea.relevancy + idea.virality) / 4).toFixed(1);
+                    const isSelected = selectedIdea?.hook === idea.hook;
                     return (
                       <div
-                        key={idea.title}
+                        key={idea.hook}
                         className="card-in border p-6 flex flex-col transition-shadow"
                         style={{
                           animationDelay: `${i * 80}ms`,
@@ -471,9 +471,9 @@ function Index() {
                             : undefined,
                         }}
                       >
-                        <h3 className="font-display text-xl leading-tight mb-5">{idea.title}</h3>
+                        <h3 className="font-display text-xl leading-tight mb-5">{idea.hook}</h3>
                         <div className="space-y-2 mb-5 text-xs">
-                          <Rating icon="⚡" label="Hook Strength" value={idea.hook} />
+                          <Rating icon="⚡" label="Hook Strength" value={idea.hookStrength} />
                           <Rating icon="❤️" label="Emotional Engagement" value={idea.emotion} />
                           <Rating icon="🎯" label="Relevancy" value={idea.relevancy} />
                           <Rating icon="📈" label="Virality Potential" value={idea.virality} />
@@ -489,18 +489,22 @@ function Index() {
                           >
                             {isSelected ? "✓ Selected" : "Select This Angle →"}
                           </button>
-                          <div className="absolute left-0 right-0 top-full pt-1 z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-                            <div className="border border-border bg-card shadow-lg">
-                              {slots.map((s, si) => (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  onClick={() => { setSelectedIdea(idea); assignAngleToSlot(s.id, idea.title); }}
-                                  className="block w-full text-left px-3 py-2 text-xs hover:bg-muted transition"
-                                >
-                                  Add to Slot {si + 1}{s.time ? ` · ${s.time}` : ""}
-                                </button>
-                              ))}
+                          <div className="absolute left-0 right-0 top-full pt-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
+                            <div className="border border-border bg-card shadow-lg min-w-[200px]">
+                              {slots.length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-muted-foreground">No slots yet — add one in Plan Your Day</div>
+                              ) : (
+                                slots.map((s, si) => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => { setSelectedIdea(idea); assignAngleToSlot(s.id, idea.hook); }}
+                                    className="block w-full text-left px-3 py-2 text-xs hover:bg-muted transition"
+                                  >
+                                    Add to Slot {si + 1}{s.time ? ` · ${s.time}` : ""}
+                                  </button>
+                                ))
+                              )}
                             </div>
                           </div>
                         </div>
