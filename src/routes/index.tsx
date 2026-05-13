@@ -431,7 +431,7 @@ function Index() {
                         style={{
                           animationDelay: `${i * 80}ms`,
                           borderColor: isSelected ? "var(--primary)" : "var(--color-border)",
-                          backgroundColor: "#141416",
+                          backgroundColor: "var(--card)",
                           boxShadow: isSelected
                             ? "0 0 0 1px var(--primary), 0 10px 40px -20px color-mix(in oklab, var(--primary) 60%, transparent)"
                             : undefined,
