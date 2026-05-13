@@ -236,7 +236,7 @@ function Index() {
   const scheduledCount = slots.filter((s) => s.scheduled).length;
 
   return (
-    <div className="grain min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
+    <div className="grain min-h-screen" style={{ backgroundColor: "#F1F5F9" }}>
       <div className="mx-auto max-w-7xl px-5 py-8">
         <header className="flex items-start justify-between gap-4 mb-10">
           <div className="flex items-center gap-3">
