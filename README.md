@@ -23,6 +23,17 @@ The UI — built in Lovable — lets a single operator plan an entire day of con
 
 ---
 
+Links & Images:
+- 🔗 Live UI: ![Lovable link]([https://unreelengine.lovable.app](https://unreelengine.lovable.app/))
+- 🔗 n8n Workflow:
+<img width="1687" height="841" alt="image" src="https://github.com/user-attachments/assets/f8ff7d23-42cd-49e4-9ace-411c0ba265ad" />
+
+- 🔗 AirtableDB log:
+<img width="1830" height="891" alt="image" src="https://github.com/user-attachments/assets/ef23d30e-a861-4be1-a46c-efc965915f2d" />
+<img width="1477" height="881" alt="image" src="https://github.com/user-attachments/assets/e487f22e-165f-447b-93eb-e4727e8f51a7" />
+
+
+---
 ## System Architecture
 
 ```
