@@ -3,7 +3,7 @@
 > AI-powered content automation system for faceless Instagram Reels.
 > One operator. Any niche. Any tone. Full script package in under 10 seconds.
 
-![Status](https://img.shields.io/badge/status-inactive-brightgreen)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-n8n%20%7C%20Groq%20%7C%20Airtable%20%7C%20Lovable-purple)
 
 ## What It Does
