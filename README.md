@@ -76,6 +76,7 @@ Links & Images:
 
 * Phase 2
 ```
+<img width="1440" height="1640" alt="image" src="https://github.com/user-attachments/assets/58aa70c8-7fab-4362-8fe6-38819ad14f74" />
 
 ---
 
@@ -90,6 +91,8 @@ Links & Images:
 | Voiceover | ElevenLabs | Per-niche voice generation — Phase 2 |
 | Scheduling | Metricool | Auto-posting to Instagram — Phase 2 |
 | Video Generation | Kling AI | AI video assembly from script + audio — Phase 2 |
+
+<img width="1440" height="1000" alt="image" src="https://github.com/user-attachments/assets/38c4316f-1ad6-41e0-980b-68b230e7be1b" />
 
 ---
 
