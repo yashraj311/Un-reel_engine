@@ -281,8 +281,4 @@ This repo covers Part 2 — the working prototype.
 
 Interests: AI product thinking, workflow automation, content systems, no-code/low-code tooling
 
-[LinkedIn](https://linkedin.com/in/yashrajshukla) · [Portfolio Notion](https://notion.so) · [GitHub](https://github.com/yashrajaipm)
-## Built By
-
-Yash Raj Shukla — Aspiring AI Product Manager  
-[LinkedIn](https://linkedin.com/in/yashrajshukla) · [Portfolio](https://notion.so)
+[LinkedIn](https://www.linkedin.com/in/yash-raj-shukla-3112ko) · [Portfolio Notion](https://yashraj-aipm-311.notion.site/Yash-Raj-Shukla-Product-Portfolio-312a1333ad5b80b6b45af4df93227245?source=copy_link) · [GitHub](https://github.com/yashraj311)
